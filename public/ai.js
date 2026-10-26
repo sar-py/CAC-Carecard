@@ -1,7 +1,7 @@
 /* Gemini runs on save; local urgent checks never wait for the provider. */
 (()=>{
  let configured=false;const cache=new Map(),pending=new Set();
- const status=document.createElement('p');status.id='aiStatus';status.className='fine';status.setAttribute('role','status');status.textContent='Notes are saved locally. Checking Gemini connection…';$('saveNote').parentElement.before(status);
+ const status=document.createElement('p');status.id='aiStatus';status.className='fine';status.setAttribute('role','status');status.textContent='Checking Gemini connection…';$('saveNote').parentElement.before(status);
  const disclosure=document.createElement('p');disclosure.className='fine';disclosure.textContent='When configured, Gemini checks saved notes and prepares your summary automatically. Note text and recent symptom context are sent to Google. Check AI suggestions against your original words.';status.after(disclosure);
  const banner=$('liveSafety');$('main').insertBefore(banner,document.querySelector('.topbar').nextSibling);banner.classList.add('careguard-banner');
  function showSafety(safety){if(safety.level==='routine')return;banner.hidden=false;banner.innerHTML=safety.level==='emergency'?safetyHTML(safety):'<strong>CareGuard · Check in with a professional</strong>'+escapeHTML(safety.message);}
@@ -25,11 +25,11 @@
   if($('summaryOrigin'))$('summaryOrigin').textContent='Preparing your Gemini paragraph… Your recorded notes remain available below.';
   if(pending.has(signature))return;pending.add(signature);
   try{const {summary:result}=await api('ai/summary','POST',{consent:true,entryIds:entries.map(e=>e.id)});cache.set(signature,result);if(key(selected())===signature)paint(result,entries);}
-  catch(e){const error='Local summary shown. '+e.message;cache.set(signature,{error});if(key(selected())===signature&&$('summaryOrigin'))$('summaryOrigin').textContent=error;}
+  catch(e){const error='Rule-based summary shown. '+e.message;cache.set(signature,{error});if(key(selected())===signature&&$('summaryOrigin'))$('summaryOrigin').textContent=error;}
   finally{pending.delete(signature);}
  }
  window.CareAI={saved,summary};
- api('health').then(data=>{configured=!!data.ai?.configured;status.textContent=configured?'Gemini checks your note automatically when you save.':'Gemini is not configured. Notes and urgent CareGuard checks still work locally.';summary();}).catch(showError);
+ api('health').then(data=>{configured=!!data.ai?.configured;status.textContent=configured?'Gemini checks your note automatically when you save.':(data.cloud?'Gemini is not configured. Notes save to your account with rule-based analysis.':'Gemini is not configured. Notes and urgent CareGuard checks still work locally.');summary();}).catch(showError);
  const scan=document.createElement('button');scan.type='button';scan.className='secondary';scan.textContent='Read label with Gemini';scan.id='geminiLabel';$('scanPreview').after(scan);
  const scanDisclosure=document.createElement('p');scanDisclosure.className='fine';scanDisclosure.textContent='Sends this photo to Google to read visible product-label text. Confirm the name and category before saving. It cannot identify symptoms or pills.';scan.after(scanDisclosure);
  scan.addEventListener('click',async()=>{if(!state.scanImage)return toast('Choose a product-label photo first.');const image=state.scanImage;CareScan.reset();scan.disabled=true;scan.textContent='Reading label…';$('barcodeStatus').textContent='Reading the selected label photo with Gemini…';try{const {product}=await api('ai/scan','POST',{consent:true,image});if(state.scanImage!==image)return;$('productName').value=product.name;$('productConfirm').checked=false;$('barcodeStatus').textContent='Gemini label suggestion: '+product.labelText+' Check the name and category, then confirm before saving.';}catch(e){$('barcodeStatus').textContent=e.message+' Manual entry is available.';}finally{scan.disabled=false;scan.textContent='Read label with Gemini';}});

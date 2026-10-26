@@ -12,3 +12,6 @@ node_modules/
 *.pem
 *.key
 .DS_Store
+.vercel/
+playwright-report/
+test-results/

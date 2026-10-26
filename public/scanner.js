@@ -26,7 +26,7 @@
     busy(true);status('Looking up barcode '+code+' in Open Food Facts…');
     controller=new AbortController();
     try{
-      const response=await fetch('/api/barcode/'+encodeURIComponent(code),{signal:controller.signal});
+      const response=await fetch('/api/barcode/'+encodeURIComponent(code),{signal:controller.signal,headers:await(window.CareAuth?.headers()||{}),cache:'no-store'});
       const data=await response.json();if(token!==revision)return;
       if(!response.ok)throw new Error(data.error||'Product lookup failed. Enter the details manually.');
       lookupProduct=data.product;barcode=code;name.value=data.product.name;confirm.checked=false;

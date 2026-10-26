@@ -6,10 +6,12 @@ const date = value => new Date(value).toLocaleString(undefined,{dateStyle:'mediu
 const localTime = value => {const d=new Date(value);return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};
 function toast(message) { $('toast').textContent=message;$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,5000); }
 async function api(route,method='GET',body) {
-  const response=await fetch('/api/'+route,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+  const authHeaders=await (window.CareAuth?.headers()||{});
+  const response=await fetch('/api/'+route,{method,headers:{...authHeaders,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,cache:'no-store'});
+  if(response.status===401||response.status===403)window.CareAuth?.unauthorized();
   const data=await response.json();if(!response.ok) throw new Error(data.error||'Request failed.');return data;
 }
-function showError(error) {toast(error.message || 'Connection failed. Check that the local server is running.');document.dispatchEvent(new CustomEvent('carecard:error'));}
+function showError(error) {toast(error.message || 'Connection failed. Check your connection and sign-in.');document.dispatchEvent(new CustomEvent('carecard:error'));}
 function page(name) {
   if(!['journal','timeline','scan','summary'].includes(name)) name='journal';
   document.querySelectorAll('.page').forEach(el=>el.hidden=el.id!=='page-'+name);
@@ -110,7 +112,7 @@ $('noteForm').addEventListener('submit',async event=>{
     const product=previous?.product?{...previous.product,name:$('editProductName').value.trim(),type:$('editProductType').value,confirmed:true}:null;
     const body={description:$('symptomInput').value,recordedAt:$('noteTime').value?new Date($('noteTime').value).toISOString():undefined,severity:$('includeSeverity').checked?Number($('severitySlider').value):null,image:state.noteImage,product,answers:previous?.answers||{},dismissed:previous?.dismissed||[]};
     const {entry}=await api('entries'+(state.editing?'/'+state.editing:''),state.editing?'PUT':'POST',body);
-    resetNote();await reload();window.CareAI?.saved(entry);toast(entry.aiStatus==='used'?'Saved with Gemini.':entry.aiStatus==='unavailable'?'Saved locally. '+entry.aiError:entry.aiStatus==='skipped_urgent'?'Saved. CareGuard warning shown immediately.':'Your note is saved.');
+    resetNote();await reload();window.CareAI?.saved(entry);toast(entry.aiStatus==='used'?'Saved with Gemini.':entry.aiStatus==='unavailable'?(window.CareAuth?.cloud?'Saved to your account. ':'Saved locally. ')+entry.aiError:entry.aiStatus==='skipped_urgent'?'Saved. CareGuard warning shown immediately.':'Your note is saved.');
     if(entry.safety.level==='emergency') showEvidence(entry.id);
     else {document.dispatchEvent(new CustomEvent('carecard:saved',{detail:{count:state.entries.length}}));if(entry.followUpQuestions.length) offerQuestions(entry,!previous);}
   } catch(error) {showError(error);} finally {button.disabled=false;button.textContent=state.editing?'Save changes ↗':'Save note ↗';}
@@ -197,4 +199,4 @@ $('privacyButton').addEventListener('click',()=>$('privacyDialog').showModal());
 $('exportData').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({app:'CareCard',version:1,exportedAt:new Date().toISOString(),entries:state.entries},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='carecard-journal-'+localTime(new Date()).slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Export downloaded. Keep this health information private.');});
 $('deleteAll').addEventListener('click',async()=>{if(prompt('This permanently deletes every note and photo from this journal. Type DELETE ALL to continue.')!=='DELETE ALL')return;try{await api('entries','DELETE',{confirm:'DELETE ALL'});resetNote();await reload();$('privacyDialog').close();toast('All journal data deleted.');}catch(error){showError(error);}});
 page(location.hash.slice(1));
-reload().catch(error=>{$('connectionError').hidden=false;$('connectionError').textContent='Could not load your journal. Start the CareCard server, then reload this page. '+(error.message||'');});
+reload().catch(error=>{$('connectionError').hidden=false;$('connectionError').textContent='Could not load your journal. Check your connection and sign-in, then reload. '+(error.message||'');});

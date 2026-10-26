@@ -107,10 +107,11 @@ function createApp(options = {}) {
       }
       if(route.startsWith('/api/')) return json(404,{error:'API route not found.'});
       if(req.method!=='GET' && req.method!=='HEAD') return json(405,{error:'Method not allowed.'});
-      const files = {'/':'index.html','/index.html':'index.html','/style.css':'style.css','/design.css':'design.css','/motion.js':'motion.js','/ai.js':'ai.js','/app.js':'app.js','/voice.js':'voice.js','/organizer.js':'organizer.js','/scanner.js':'scanner.js','/vendor/zxing-0.23.0.min.js':'vendor/zxing-0.23.0.min.js','/fonts/nunito-latin-800-normal.woff2':'fonts/nunito-latin-800-normal.woff2','/fonts/nunito-latin-900-normal.woff2':'fonts/nunito-latin-900-normal.woff2'};
+      const files = {'/':'index.html','/index.html':'index.html','/style.css':'style.css','/design.css':'design.css','/motion.js':'motion.js','/auth.bundle.js':'auth.bundle.js','/pwa.js':'pwa.js','/manifest.webmanifest':'manifest.webmanifest','/sw.js':'sw.js','/icons/icon-192.png':'icons/icon-192.png','/icons/icon-512.png':'icons/icon-512.png','/icons/maskable-512.png':'icons/maskable-512.png','/icons/apple-touch-icon.png':'icons/apple-touch-icon.png','/ai.js':'ai.js','/app.js':'app.js','/voice.js':'voice.js','/organizer.js':'organizer.js','/scanner.js':'scanner.js','/vendor/zxing-0.23.0.min.js':'vendor/zxing-0.23.0.min.js','/fonts/nunito-latin-800-normal.woff2':'fonts/nunito-latin-800-normal.woff2','/fonts/nunito-latin-900-normal.woff2':'fonts/nunito-latin-900-normal.woff2'};
       if(!files[route]) return json(404,{error:'Page not found.'});
       const file=files[route];
-      res.writeHead(200,{'Content-Type':file.endsWith('.woff2')?'font/woff2':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8','Cache-Control':'no-cache'});
+      if(file==='sw.js')res.setHeader('Cache-Control','no-store');
+      res.writeHead(200,{'Content-Type':file.endsWith('.png')?'image/png':file.endsWith('.webmanifest')?'application/manifest+json':file.endsWith('.woff2')?'font/woff2':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8','Cache-Control':'no-cache'});
       res.end(req.method==='HEAD'?'':fs.readFileSync(path.join(PUBLIC,file)));
     } catch(error) {json(error.status || 500,{error:error.status?error.message:'Could not access the journal. Your change was not saved. Check disk space and server logs.'}); if(!error.status) console.error(error.message);}
   });
