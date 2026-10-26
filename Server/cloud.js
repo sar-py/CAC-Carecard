@@ -1,3 +1,4 @@
+const {deviceSession}=require('./device-session');
 const {createSupabase,failure}=require('./supabase');
 const {validate}=require('./server'),logic=require('../public/organizer'),{createGemini}=require('./gemini'),{createLookup}=require('./barcode');
 function createCloudHandler({database=createSupabase(),ai=createGemini(),lookup=createLookup(fetch),allowedEmails=process.env.ALLOWED_EMAILS||''}={}){
@@ -7,11 +8,12 @@ function createCloudHandler({database=createSupabase(),ai=createGemini(),lookup=
   const json=(status,body)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.end(JSON.stringify(body));};
   try{
    const parsed=new URL(req.url,'http://localhost');const route=req.query?.route||parsed.searchParams.get('route')||parsed.pathname.replace(/^\/api\/?/,'');
-   if(route==='config'&&req.method==='GET')return json(200,{cloud:true,configured:database.configured&&allowed.size>0,supabase:database.publicConfig()});
-   if(!database.configured||!allowed.size)throw failure(503,'Cloud setup is incomplete. Configure Supabase and ALLOWED_EMAILS in Vercel.');
+   const deviceMode=typeof database.deviceStore==='function';
+   if(route==='config'&&req.method==='GET'){if(deviceMode&&database.configured)deviceSession(req,res,{create:true});return json(200,{cloud:true,authMode:deviceMode?'device':'email',configured:database.configured&&(deviceMode||allowed.size>0),...(deviceMode?{}:{supabase:database.publicConfig()})});}
+   if(!database.configured||!deviceMode&&!allowed.size)throw failure(503,'Cloud setup is incomplete. Configure Supabase and ALLOWED_EMAILS in Vercel.');
    const origin=req.headers.origin;if(origin&&new URL(origin).host!==req.headers.host)throw failure(403,'Cross-origin access is blocked.');
-   const token=(req.headers.authorization||'').match(/^Bearer ([^\s]+)$/)?.[1];const user=await database.authenticate(token);if(!allowed.has(user.email?.toLowerCase()))throw failure(403,'This account is not invited to this CareCard app.');
-   const store=database.store(token,user.id);let body=req.body;
+   let store;if(deviceMode){if(['POST','PUT','DELETE'].includes(req.method)&&!origin&&req.headers['sec-fetch-site']!=='same-origin')throw failure(403,'Use the CareCard page to change your journal.');store=database.deviceStore(deviceSession(req,res));}else{const token=(req.headers.authorization||'').match(/^Bearer ([^\s]+)$/)?.[1];const user=await database.authenticate(token);if(!allowed.has(user.email?.toLowerCase()))throw failure(403,'This account is not invited to this CareCard app.');store=database.store(token,user.id);}
+   let body=req.body;
    if(['POST','PUT','DELETE'].includes(req.method)){
     if(req.headers['content-type']?.split(';')[0]!=='application/json')throw failure(415,'Use application/json.');
     if(body===undefined){let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>750000)throw failure(413,'Request too large.');}try{body=JSON.parse(raw||'{}');}catch{throw failure(400,'Invalid JSON.');}}

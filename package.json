@@ -2,7 +2,7 @@
   "name": "carecard",
   "version": "1.0.0",
   "private": true,
-  "description": "CareCard private health journal for local use or Vercel with Supabase Auth and Postgres.",
+  "description": "CareCard private browser journals with automatic Gemini assistance, Supabase storage and phone PWA support.",
   "scripts": {
     "start": "node Server/server.js",
     "test": "node --test test/*.test.js",
@@ -12,9 +12,6 @@
   },
   "engines": {
     "node": "24.x"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.118.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.12",

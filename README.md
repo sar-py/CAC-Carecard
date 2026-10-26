@@ -1,53 +1,49 @@
 # CareCard
 
-A red-and-white health notebook with automatic Gemini assistance, optional symptom ratings and follow-up questions, product barcode lookup, and an appointment summary linked to original notes.
+Private health notebooks with automatic Gemini assistance, conditional severity ratings, optional follow-up questions, barcode/product recognition and an appointment summary.
 
-**Hosted on Vercel:** private email sign-in with Supabase Auth; notes and resized photos in Supabase Postgres with row-level ownership policies. Works on iPhone Safari and Android Chrome, with Add to Home Screen support. AI keys stay server-side.
+Live app: https://cac-carecard.vercel.app
 
-**Local desktop mode:** `npm start` keeps the original single-user journal in `data/entries.json`, without requiring Supabase. It accepts connections only from the same computer.
+## No sign-in
 
-## Put it online
+The hosted app opens immediately. Each browser receives a random private HttpOnly/Secure cookie; the server uses its hashed identifier to access that browser's own Supabase rows. Database policies independently block other browser journals. No email, password or Supabase Auth setup is required for the current interface.
 
-Follow [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md). You need your own Vercel and Supabase accounts. The code is deployment-ready, but the database, sign-in email templates, invited emails and environment variables must be configured before the hosted app works. No Vercel project or live Supabase database is provisioned by this repository.
+Different browsers and devices have separate journals. Clearing cookies/site data, private-browsing cleanup or cookie expiry can disconnect a browser from its stored notes. Export notes before clearing browser data. This version has no account-based recovery or cross-device synchronization. Earlier email-account tables remain protected for backward compatibility and are not exposed through the current browser-journal interface.
+
+The cookie is a bearer capability: protect your browser profile and exports. App code cannot read the HttpOnly cookie. API and sign-in responses are not cached by the service worker. Notes and photos are stored in Supabase, and Google receives selected content for Gemini features.
 
 ## Run locally
 
-Install Node.js 24, clone the repository, then run:
+Install Node.js 24, clone this repository and run:
 
 ```sh
-git clone https://github.com/sar-py/CAC-Carecard.git
-cd CAC-Carecard
 npm ci
 npm run build
 npm start
 ```
 
-Open http://127.0.0.1:3000. On Windows, `Start CareCard.cmd` also starts the local server. If PowerShell blocks npm.ps1, use `npm.cmd`.
+Open http://127.0.0.1:3000. This local desktop mode still stores its independent journal in `data/entries.json` and needs no Supabase account. Add your own Gemini key in a local `.env` file. Never commit `.env`, API keys or personal journal data.
 
-Copy `.env.example` to `.env` and set `GEMINI_API_KEY` for local Gemini. No real key or journal data belongs in Git. The local version does not use cloud sign-in. To test hosted functions locally, use Vercel CLI `vercel dev` after linking your Vercel project and environment variables; ordinary `npm start` deliberately stays local.
+## Deploy
 
-## Phone use
+See [DEPLOY-VERCEL.md](DEPLOY-VERCEL.md). The current Vercel project and database are already configured. Changing GitHub code does not currently auto-deploy: the Vercel account needs its GitHub login connection linked before Git integration can be enabled. The current site was uploaded directly through Vercel's deployment API.
 
-Open your HTTPS Vercel URL in Safari or Chrome. Sign in with an email in the owner's `ALLOWED_EMAILS`. Then:
+## Add to a phone
 
-- iPhone: Safari > Share > Add to Home Screen.
-- Pixel/Android: Chrome menu > Install app or Add to Home screen.
+Open the HTTPS site on your phone. iPhone: Safari > Share > Add to Home Screen. Pixel/Android: Chrome menu > Install app or Add to Home screen. No Xcode or Android Studio is needed for this web app. Use the same browser/home-screen profile consistently to keep the same journal.
 
-The installed web app uses the same private cloud journal across signed-in devices. It is a web app, not an App Store or Play Store binary. Photo upload/camera selection and browser/keyboard dictation depend on the phone browser. No native development tools are needed.
+## Behavior
 
-## Features and privacy
+- Save note automatically runs Gemini when configured. Immediate local CareGuard warnings never wait for Google. Ratings and questionnaires stay optional.
+- A failed AI request does not discard an otherwise successful database save; the note keeps rule-based analysis and a visible fallback explanation.
+- Barcode decoding stays in the browser; supported foods are looked up in Open Food Facts. Photo label reading sends the selected image only on the explicit Gemini label button. Confirm the name before saving; unknown products keep manual entry.
+- Summaries update automatically and link back to the original notes. Check AI drafts against those notes.
+- The home-screen app caches only static files. Opening/saving a cloud journal needs internet access; there is no offline journal synchronization. Leave unsaved text open until connection returns.
+- AI is limited to 30 requests per browser per minute and 200 requests per day across this personal deployment. Database-enforced counters persist across Vercel instances. Also configure the owner's Google project quota.
 
-- Save note automatically runs Gemini when configured, with immediate local CareGuard rules and optional ratings/questions. An AI outage or quota limit does not discard a successfully stored note; it falls back to rule-based analysis.
-- Hosted notes and photos are stored under the authenticated account. Every data/AI route verifies the session and invitation; Postgres enforces ownership independently. No Supabase service-role key is used.
-- Server-side per-account AI limits persist across Vercel instances. The owner must set Google project quotas and monitor their own usage.
-- CareScan decodes EAN/UPC images locally and looks up supported foods in Open Food Facts. Unknown products retain manual entry. Gemini label reading sends the selected image only on the explicit label button. Every suggested product requires confirmation.
-- The summary is generated automatically from the selected notes with evidence references. AI can misread or invent details; check against your originals.
-- The PWA caches only a static shell. Journal data, sign-in responses and API results are never put in its service-worker cache. The cloud app needs internet access to open or save notes; it does not offer offline journal storage/sync. Keep unsaved text open until you reconnect.
-- Hosted privacy differs from local privacy: notes live in your Supabase project, and selected text/images are processed by Google for AI. Browser speech can send audio to the browser's provider. Exports are independent private files.
+CareCard is a personal journal, not a diagnosis, emergency service or clinically validated tool. Absence of a warning does not mean symptoms are safe. No compliance certification is claimed.
 
-CareCard is a personal journal, not medical advice, a diagnosis, or an emergency service. It is not clinically validated and makes no compliance certification claim. Absence of a CareGuard warning does not mean symptoms are safe.
-
-## Checks
+## Verify
 
 ```sh
 npm run build
@@ -55,21 +51,8 @@ npm test
 npm run test:phone
 ```
 
-`npm test` covers extraction, API regression, hosted authentication and isolation, Supabase REST contracts, and real PostgreSQL RLS/AI-budget execution via PGlite. `npm run test:phone` uses a separate headless Chrome with synthetic auth/database responses to check the bundled sign-in UI, private save, ratings, questionnaires, summary, sign-out, 320/390/430px layouts, and PWA static-cache boundaries. Set `CARECARD_CHROME` to your Chrome executable if needed.
+Tests cover extraction/safety/scanning regression, cookies and cross-site protection, private journal isolation, real PostgreSQL policies and phone browser save/reload/severity/questionnaire/summary flows. Browser tests use a separate headless Chrome and synthetic data. Set CARECARD_CHROME to your Chrome executable if needed.
 
-These tests do not prove a real Supabase project, email delivery, Vercel deployment, or physical iPhone has been configured correctly. Complete the live checks in the deployment guide.
+Main hosted files: `api/handler.js`, `Server/cloud.js`, `Server/supabase.js`, `Server/device-session.js`, `cloud/auth.js`, `vercel.json`, and the SQL files under `supabase/migrations`. The auth.js filename is retained for asset compatibility; the current client has no sign-in form or email-auth SDK.
 
-## Main files
-
-| File | Purpose |
-| --- | --- |
-| `api/handler.js`, `vercel.json` | Serverless entry point, routing, security headers |
-| `Server/cloud.js` | Authenticated cloud API and server-side Gemini calls |
-| `Server/supabase.js` | Verified user sessions and user-token-scoped database requests |
-| `supabase/migrations/20261026_carecard.sql` | Database table, ownership policies and per-account AI budget |
-| `cloud/auth.js` | Supabase email-link sign-in client |
-| `public/sw.js`, `public/manifest.webmanifest` | Static-shell home-screen app support |
-| `Server/server.js`, `Server/database.js` | Original local desktop server and JSON storage |
-| `Server/gemini.js`, `public/organizer.js` | AI integration and immediate local safety/analysis rules |
-
-Earlier implementation/design notes in the other Markdown files are historical; this README and DEPLOY-VERCEL.md describe current hosted behavior.
+Earlier Markdown implementation notes describe historical versions; this README and DEPLOY-VERCEL.md describe the current hosted app.

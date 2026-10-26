@@ -1,0 +1,3 @@
+const crypto=require('node:crypto');const NAME='__Host-carecard';
+function deviceSession(req,res,{create=false}={}){const cookies=String(req.headers.cookie||'').split(';').map(s=>s.trim());let token=cookies.find(s=>s.startsWith(NAME+'='))?.slice(NAME.length+1);if(!/^[a-f0-9]{64}$/.test(token||'')){if(!create)throw Object.assign(new Error('Could not open this browser journal. Reload the page and allow first-party cookies.'),{status:401});token=crypto.randomBytes(32).toString('hex');res.setHeader('Set-Cookie',`${NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=31536000`);}return token;}
+module.exports={deviceSession};

@@ -1,4 +1,4 @@
-const CACHE='carecard-shell-v1';
+const CACHE='carecard-shell-v2';
 const SHELL=['/','/index.html','/style.css','/design.css','/auth.bundle.js','/organizer.js','/app.js','/voice.js','/motion.js','/scanner.js','/ai.js','/pwa.js','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png','/vendor/zxing-0.23.0.min.js','/fonts/nunito-latin-800-normal.woff2','/fonts/nunito-latin-900-normal.woff2'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('carecard-shell-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
