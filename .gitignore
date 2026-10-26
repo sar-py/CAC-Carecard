@@ -1,0 +1,14 @@
+# Private configuration: never commit API keys.
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Personal health records, dependencies, logs and private archives.
+data/
+node_modules/
+*.log
+*.zip
+*.pem
+*.key
+.DS_Store
