@@ -23,7 +23,9 @@ create index if not exists carecard_entries_recent on public.carecard_entries(us
 create schema if not exists carecard_private;
 revoke all on schema carecard_private from public,anon,authenticated;
 create table if not exists carecard_private.ai_budget(user_id uuid primary key references auth.users(id) on delete cascade,window_start timestamptz not null,used integer not null);
-create or replace function public.carecard_take_ai_slot() returns boolean
+alter table carecard_private.ai_budget enable row level security;
+revoke all on carecard_private.ai_budget from public,anon,authenticated;
+create or replace function carecard_private.take_ai_slot() returns boolean
 language plpgsql security definer set search_path='' as $$
 declare who uuid:=auth.uid(); used_now integer;
 begin
@@ -36,5 +38,11 @@ begin
  returning used into used_now;
  return used_now<=30;
 end; $$;
+revoke all on function carecard_private.take_ai_slot() from public,anon;
+grant usage on schema carecard_private to authenticated;
+grant execute on function carecard_private.take_ai_slot() to authenticated;
+
+create or replace function public.carecard_take_ai_slot() returns boolean
+language sql security invoker set search_path='' as $$ select carecard_private.take_ai_slot(); $$;
 revoke all on function public.carecard_take_ai_slot() from public,anon;
 grant execute on function public.carecard_take_ai_slot() to authenticated;
